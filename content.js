@@ -143,11 +143,14 @@ function parseSoldPrices(html) {
   });
 
   if (prices.length === 0 && cardPrices && cardPrices.length) {
+    let matched = 0;
     cardPrices.forEach((el) => {
       // Ensure this price is tied to an actual item link
       const container = el.closest('li, div') || el.parentElement;
-      const link = el.closest('a[href*="/itm/"]') || container?.querySelector('a[href*="/itm/"]');
+      const link = el.closest('a[href*="/itm/"]') || container?.querySelector('a[href*="/itm/"]') ||
+        el.closest('a.s-item__link') || container?.querySelector('a.s-item__link');
       if (!link) return;
+      matched += 1;
 
       const priceText = el.textContent || '';
       if (!priceText.match(/[$€£¥]/)) return;
@@ -157,6 +160,10 @@ function parseSoldPrices(html) {
         prices.push(parseFloat(matches[0].replace(',', '')));
       }
     });
+    if (prices.length === 0) {
+      console.log('FlipScout debug: s-card__price count', cardPrices.length);
+      console.log('FlipScout debug: s-card__price matched links', matched);
+    }
   }
 
   return { prices, dates };
