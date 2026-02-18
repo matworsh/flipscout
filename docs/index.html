@@ -1,0 +1,320 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FlipScout - eBay Reseller Intelligence</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #101826;
+      --ink: #e8eef6;
+      --muted: #a6b0bf;
+      --accent: #2ee6a6;
+      --accent-2: #5aa9ff;
+      --danger: #ff6b6b;
+      --shadow: 0 20px 60px rgba(0,0,0,0.45);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 700px at 80% -10%, rgba(90,169,255,0.25), transparent),
+                  radial-gradient(900px 600px at 0% 20%, rgba(46,230,166,0.18), transparent),
+                  var(--bg);
+      color: var(--ink);
+      font-family: "Space Grotesk", "IBM Plex Sans", "Segoe UI", sans-serif;
+      letter-spacing: 0.2px;
+    }
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+    .hero {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: 1.1fr 0.9fr;
+      align-items: center;
+    }
+    .tag {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(90,169,255,0.15);
+      color: var(--accent-2);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-size: 46px;
+      line-height: 1.05;
+      margin: 12px 0;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.5;
+    }
+    .cta-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #22c1ff);
+      color: #04101a;
+      box-shadow: var(--shadow);
+    }
+    .btn-secondary {
+      background: #162235;
+      color: var(--ink);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .btn:active { transform: translateY(1px); }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .stats {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .stats div span {
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .section {
+      margin-top: 60px;
+    }
+    .section h2 {
+      font-size: 28px;
+      margin: 0 0 14px;
+    }
+    .steps {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+    }
+    .step {
+      padding: 16px;
+      border-radius: 14px;
+      background: #0f1724;
+      border: 1px solid rgba(255,255,255,0.08);
+      min-height: 120px;
+    }
+    .step h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .table th, .table td {
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .table th { color: var(--muted); font-weight: 600; }
+    .pricing {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+    .price-card {
+      border-radius: 16px;
+      padding: 20px;
+      background: #0f1724;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .price {
+      font-size: 30px;
+      font-weight: 800;
+    }
+    .faq {
+      display: grid;
+      gap: 12px;
+    }
+    .faq-item {
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #0f1724;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .foot {
+      margin-top: 50px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .pricing { grid-template-columns: 1fr; }
+      h1 { font-size: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <div class="tag">FlipScout for eBay Resellers</div>
+        <h1>Know what it sells for before you buy it.</h1>
+        <p class="sub">FlipScout injects a live sidebar on eBay listings and shows sold price ranges, averages, and flip potential instantly.</p>
+        <div class="cta-row">
+          <button class="btn btn-primary" id="install-btn">Install Free Extension</button>
+          <button class="btn btn-secondary" id="checkout-btn">Upgrade to Pro</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700; margin-bottom: 10px;">Live snapshot</div>
+        <div class="stats">
+          <div>Avg sold: <span>$249.32</span></div>
+          <div>Median: <span>$239.00</span></div>
+          <div>Low: <span>$149.99</span></div>
+          <div>High: <span>$399.00</span></div>
+        </div>
+        <div style="margin-top: 14px; color: var(--muted); font-size: 12px;">Numbers shown are sample data for illustration.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <h3>1. Install</h3>
+          <div>Install the extension from the Chrome Web Store.</div>
+        </div>
+        <div class="step">
+          <h3>2. Browse</h3>
+          <div>Open any eBay listing or search results page.</div>
+        </div>
+        <div class="step">
+          <h3>3. Decide fast</h3>
+          <div>FlipScout shows sold price stats and profit potential instantly.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Free vs Pro</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Free (10/day)</th>
+            <th>Pro ($12/mo)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Avg / Min / Max sold price</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td>Median price</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td>Flip Score</td><td>No</td><td>Yes</td></tr>
+          <tr><td>Sales velocity / count</td><td>No</td><td>Yes</td></tr>
+          <tr><td>Works on search results page</td><td>No</td><td>Yes</td></tr>
+          <tr><td>Price history chart</td><td>No</td><td>Yes</td></tr>
+          <tr><td>Export to CSV</td><td>No</td><td>Yes</td></tr>
+          <tr><td>Profit calculator</td><td>No</td><td>Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Pricing</h2>
+      <div class="pricing">
+        <div class="price-card">
+          <div style="font-weight:700;">Free</div>
+          <div class="price">$0</div>
+          <div style="color:var(--muted);">10 lookups per day</div>
+          <div class="cta-row" style="margin-top: 12px;">
+            <button class="btn btn-secondary" id="install-btn-2">Install Free</button>
+          </div>
+        </div>
+        <div class="price-card" style="border-color: rgba(46,230,166,0.5);">
+          <div style="font-weight:700; color: var(--accent);">Pro</div>
+          <div class="price">$12/mo</div>
+          <div style="color:var(--muted);">Unlimited lookups + pro features</div>
+          <div class="cta-row" style="margin-top: 12px;">
+            <button class="btn btn-primary" id="checkout-btn-2">Upgrade to Pro</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>After purchase</h2>
+      <div class="card">
+        Check your email for your license key (starts with sub_), then open FlipScout settings and paste it to activate Pro.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>FAQ</h2>
+      <div class="faq">
+        <div class="faq-item"><strong>How do I activate?</strong> Enter your sub_ license key in the extension settings page.</div>
+        <div class="faq-item"><strong>Will it always work?</strong> FlipScout reads public sold listings data directly in your browser, so it keeps working even when APIs change.</div>
+        <div class="faq-item"><strong>How do I cancel?</strong> You can cancel from your Stripe customer portal link in your receipt email.</div>
+      </div>
+    </div>
+
+    <div class="foot">
+      Privacy: FlipScout stores your usage count and license key locally in your browser. We do not collect or transmit personal data.
+    </div>
+  </div>
+
+  <script>
+    const CHROME_STORE_URL = '#';
+    const STRIPE_PAYMENT_LINK = '#';
+
+    function openCheckout() {
+      if (STRIPE_PAYMENT_LINK === '#') {
+        alert('Add your Stripe payment link in docs/index.html');
+        return;
+      }
+      window.location.href = STRIPE_PAYMENT_LINK;
+    }
+
+    function openInstall() {
+      if (CHROME_STORE_URL === '#') {
+        alert('Add your Chrome Web Store URL in docs/index.html');
+        return;
+      }
+      window.location.href = CHROME_STORE_URL;
+    }
+
+    document.getElementById('checkout-btn').addEventListener('click', openCheckout);
+    document.getElementById('checkout-btn-2').addEventListener('click', openCheckout);
+    document.getElementById('install-btn').addEventListener('click', openInstall);
+    document.getElementById('install-btn-2').addEventListener('click', openInstall);
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'true') {
+      openCheckout();
+    }
+  </script>
+</body>
+</html>

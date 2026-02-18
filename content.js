@@ -209,7 +209,7 @@ function updateSidebar({ stats, error }) {
       <button class="fs-upgrade-btn" id="fs-upgrade-btn">Upgrade - $12/mo</button>
     `;
     document.getElementById('fs-upgrade-btn').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://yourlandingpage.com/?checkout=true' });
+      window.open('https://matworsh.github.io/flipscout/?checkout=true', '_blank');
     });
     return;
   }

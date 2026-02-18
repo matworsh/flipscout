@@ -18,7 +18,7 @@
   }
 
   document.getElementById('upgrade-btn')?.addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://yourlandingpage.com/?checkout=true' });
+    chrome.tabs.create({ url: 'https://matworsh.github.io/flipscout/?checkout=true' });
   });
 
   document.getElementById('options-link').addEventListener('click', () => {
