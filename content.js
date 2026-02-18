@@ -144,7 +144,14 @@ function parseSoldPrices(html) {
 
   if (prices.length === 0 && cardPrices && cardPrices.length) {
     cardPrices.forEach((el) => {
+      // Ensure this price is tied to an actual item link
+      const container = el.closest('li, div') || el.parentElement;
+      const link = el.closest('a[href*="/itm/"]') || container?.querySelector('a[href*="/itm/"]');
+      if (!link) return;
+
       const priceText = el.textContent || '';
+      if (!priceText.match(/[$€£¥]/)) return;
+      if (priceText.toLowerCase().includes('to')) return; // skip price ranges
       const matches = priceText.match(/[\d,]+(?:\.\d{2})?/g);
       if (matches && matches.length) {
         prices.push(parseFloat(matches[0].replace(',', '')));
@@ -174,7 +181,23 @@ function calcFlipScore(currentPrice, stats) {
   return score;
 }
 
-function injectSidebar() {
+function getCurrentListingPrice() {
+  const selectors = [
+    '.x-price-primary .ux-textspans',
+    '#prcIsum',
+    '.notranslate[itemprop="price"]',
+    '.vi-price .notranslate'
+  ];
+  for (const sel of selectors) {
+    const el = document.querySelector(sel);
+    const text = el?.textContent || '';
+    const match = text.match(/[\d,]+(?:\.\d{2})?/);
+    if (match) return parseFloat(match[0].replace(',', ''));
+  }
+  return null;
+}
+
+function injectSidebar({ loading = false } = {}) {
   document.getElementById('flipscout-sidebar')?.remove();
 
   const sidebar = document.createElement('div');
@@ -184,7 +207,9 @@ function injectSidebar() {
       <span class="fs-logo">FlipScout</span>
       <button class="fs-close" id="fs-close-btn">x</button>
     </div>
-    <div class="fs-body" id="fs-body">Loading...</div>
+    <div class="fs-body" id="fs-body">
+      ${loading ? '<div class="fs-loading">Checking sold prices...</div>' : ''}
+    </div>
   `;
   document.body.appendChild(sidebar);
 
@@ -193,20 +218,23 @@ function injectSidebar() {
   });
 }
 
-function updateSidebar({ stats, error }) {
+function updateSidebar({ stats, error, limitReached, count, isPaid, flipScore }) {
   const body = document.getElementById('fs-body');
   if (!body) return;
 
   if (error) {
-    body.textContent = error;
+    body.innerHTML = `<div class="fs-error">${error}</div>`;
     return;
   }
 
-  if (stats && stats.limitReached) {
+  if (limitReached) {
     body.innerHTML = `
-      <div>Daily limit reached</div>
-      <div>10 free lookups used today</div>
-      <button class="fs-upgrade-btn" id="fs-upgrade-btn">Upgrade - $12/mo</button>
+      <div class="fs-limit">
+        <p>Daily limit reached</p>
+        <p class="fs-limit-sub">10 free lookups used today</p>
+        <button class="fs-upgrade-btn" id="fs-upgrade-btn">Upgrade - $12/mo</button>
+        <p class="fs-limit-reset">Resets at midnight</p>
+      </div>
     `;
     document.getElementById('fs-upgrade-btn').addEventListener('click', () => {
       window.open('https://matworsh.github.io/flipscout/?checkout=true', '_blank');
@@ -215,17 +243,68 @@ function updateSidebar({ stats, error }) {
   }
 
   if (!stats) {
-    body.textContent = 'No stats available';
+    body.innerHTML = '<div class="fs-error">No stats available</div>';
     return;
   }
 
+  const scoreColor = flipScore >= 80 ? '#00e676'
+    : flipScore >= 60 ? '#69f0ae'
+    : flipScore >= 31 ? '#ffca28'
+    : '#ef5350';
+
+  const scoreLabel = flipScore >= 80 ? 'Hot'
+    : flipScore >= 60 ? 'Good'
+    : flipScore >= 31 ? 'Fair'
+    : 'Low';
+
   body.innerHTML = `
-    <div>Avg: $${stats.avg.toFixed(2)}</div>
-    <div>Median: $${stats.median.toFixed(2)}</div>
-    <div>Low: $${stats.min.toFixed(2)}</div>
-    <div>High: $${stats.max.toFixed(2)}</div>
-    <div>Count: ${stats.count}</div>
+    ${isPaid && flipScore !== null ? `
+      <div class="fs-score" style="color: ${scoreColor}">
+        <div class="fs-score-number">${flipScore}</div>
+        <div class="fs-score-label">${scoreLabel} Flip</div>
+      </div>
+    ` : ''}
+
+    <div class="fs-stats">
+      <div class="fs-stat-row">
+        <span>Avg Sold</span>
+        <span class="fs-val">$${stats.avg.toFixed(2)}</span>
+      </div>
+      <div class="fs-stat-row">
+        <span>Median</span>
+        <span class="fs-val">$${stats.median.toFixed(2)}</span>
+      </div>
+      <div class="fs-stat-row">
+        <span>Low</span>
+        <span class="fs-val">$${stats.min.toFixed(2)}</span>
+      </div>
+      <div class="fs-stat-row">
+        <span>High</span>
+        <span class="fs-val">$${stats.max.toFixed(2)}</span>
+      </div>
+      ${isPaid ? `
+      <div class="fs-stat-row">
+        <span>Sales (recent)</span>
+        <span class="fs-val">${stats.count}</span>
+      </div>
+      ` : ''}
+    </div>
+
+    ${!isPaid ? `
+      <div class="fs-upsell">
+        <p>${Math.max(0, 10 - (count || 0))} free lookups left today</p>
+        <button class="fs-upgrade-btn" id="fs-upgrade-btn">
+          Upgrade for Flip Score + more
+        </button>
+      </div>
+    ` : ''}
   `;
+
+  if (document.getElementById('fs-upgrade-btn')) {
+    document.getElementById('fs-upgrade-btn').addEventListener('click', () => {
+      window.open('https://matworsh.github.io/flipscout/?checkout=true', '_blank');
+    });
+  }
 }
 
 function checkUsage() {
@@ -244,11 +323,11 @@ async function init() {
   const title = extractTitle();
   if (!title) return;
 
-  injectSidebar();
+  injectSidebar({ loading: true });
 
   const usage = await checkUsage();
   if (!usage || !usage.allowed) {
-    updateSidebar({ stats: { limitReached: true } });
+    updateSidebar({ limitReached: true });
     return;
   }
 
@@ -265,7 +344,14 @@ async function init() {
   }
 
   const stats = calcStats(prices);
-  updateSidebar({ stats });
+  const currentPrice = getCurrentListingPrice();
+  const flipScore = usage.isPaid && currentPrice ? calcFlipScore(currentPrice, stats) : null;
+  updateSidebar({
+    stats,
+    isPaid: usage.isPaid === true,
+    count: usage.count || 0,
+    flipScore
+  });
 }
 
 init();
