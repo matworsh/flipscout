@@ -64,6 +64,10 @@ app.post('/validate-license', async (req, res) => {
   }
 });
 
+app.get('/health', (req, res) => {
+  res.json({ ok: true, ts: Date.now() });
+});
+
 app.listen(process.env.PORT || 3000, () => {
   console.log('FlipScout backend running');
 });
