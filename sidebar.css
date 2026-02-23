@@ -45,6 +45,171 @@
   padding: 14px;
 }
 
+.fs-loading {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.fs-error {
+  color: #ef9a9a;
+  font-size: 12px;
+  text-align: center;
+  padding: 16px 0;
+}
+
+.fs-score {
+  text-align: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.fs-score-number {
+  font-size: 56px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.fs-score-label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 4px;
+  opacity: 0.9;
+}
+
+.fs-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fs-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.fs-val {
+  color: #fff;
+  font-weight: 600;
+}
+
+.fs-upsell {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.fs-note {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.fs-sales {
+  margin-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+}
+
+.fs-sales-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.fs-pro-block {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fs-export-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  background: #1f3d5a;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fs-profit label {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 6px;
+}
+
+.fs-profit input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0f2236;
+  color: #fff;
+  font-size: 12px;
+}
+
+.fs-profit-result {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #69f0ae;
+}
+
+.fs-sale {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  text-decoration: none;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.fs-sale:last-child {
+  border-bottom: none;
+}
+
+.fs-sale-price {
+  font-weight: 700;
+  font-size: 12px;
+  color: #69f0ae;
+  white-space: nowrap;
+}
+
+.fs-sale-title {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fs-limit {
+  text-align: center;
+  padding: 8px 0;
+}
+.fs-limit p { margin: 0 0 6px; font-weight: 600; }
+.fs-limit-sub { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.fs-limit-reset { font-size: 11px; color: rgba(255, 255, 255, 0.35); margin-top: 8px; }
+
 .fs-upgrade-btn {
   width: 100%;
   margin-top: 8px;

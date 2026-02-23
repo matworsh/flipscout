@@ -1,4 +1,4 @@
-function detectPageType() {
+﻿function detectPageType() {
   const url = window.location.href;
 
   if (url.includes('/itm/') || document.querySelector('h1.x-item-title__mainTitle')) {
@@ -10,7 +10,7 @@ function detectPageType() {
   return null;
 }
 
-function extractTitle() {
+function extractTitleRaw() {
   const selectors = [
     'h1.x-item-title__mainTitle span.ux-textspans',
     'h1.x-item-title__mainTitle',
@@ -29,20 +29,13 @@ function extractTitle() {
 
   if (!title) return null;
 
-  title = title.replace(/\(.*?\)/g, '').trim().substring(0, 80);
-  return title;
+  return title.substring(0, 120);
 }
 
-// Step 2 test hook
-console.log('FlipScout page type:', detectPageType());
-
-// Step 3 test hook
-const pageType = detectPageType();
-if (pageType === 'listing') {
-  console.log('FlipScout extracted title:', extractTitle());
-} else if (pageType === 'search') {
-  const params = new URLSearchParams(window.location.search);
-  console.log('FlipScout search query:', params.get('_nkw'));
+function extractTitleClean() {
+  const raw = extractTitleRaw();
+  if (!raw) return null;
+  return raw.replace(/\(.*?\)/g, '').trim().substring(0, 80);
 }
 
 function fetchSoldData(title) {
@@ -53,29 +46,124 @@ function fetchSoldData(title) {
   });
 }
 
+function normalizeHref(href) {
+  if (!href) return '';
+  if (href.startsWith('//')) return `https:${href}`;
+  if (href.startsWith('/')) return `https://www.ebay.com${href}`;
+  return href;
+}
+
+function extractQuantity(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  let m = t.match(/lot of\s+(\d+)/);
+  if (m) return parseInt(m[1], 10);
+  m = t.match(/\b(\d+)\s*(?:pack|packs|lot)\b/);
+  if (m) return parseInt(m[1], 10);
+  m = t.match(/\bx\s*(\d+)\b/);
+  if (m) return parseInt(m[1], 10);
+  return null;
+}
+
+function extractLanguage(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  const langs = ['english', 'chinese', 'japanese', 'korean', 'german', 'french', 'spanish', 'italian'];
+  for (const lang of langs) {
+    if (t.includes(lang)) return lang;
+  }
+  if (t.includes('jp ' ) || t.includes(' jp') || t.includes('jpn')) return 'japanese';
+  if (t.includes('cn ') || t.includes(' cn') || t.includes('chn')) return 'chinese';
+  if (t.includes('en ') || t.includes(' en') || t.includes('eng')) return 'english';
+  return null;
+}
+
+function tokenizeTitle(text) {
+  if (!text) return [];
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((w) => w.length > 2 && !['the', 'and', 'for', 'with', 'your', 'from', 'this', 'that'].includes(w));
+}
+
+function buildRequiredTokens(queryTitle) {
+  if (!queryTitle) return [];
+  const keyList = new Set(['jumbo', 'booster', 'box', 'origin', 'origins', 'starter', 'deck', 'display', 'case']);
+  const tokens = tokenizeTitle(queryTitle);
+  const required = [];
+
+  // Tokens inside parentheses are usually critical (e.g., language)
+  const paren = (queryTitle.match(/\(([^)]+)\)/g) || [])
+    .join(' ')
+    .replace(/[()]/g, ' ');
+  const parenTokens = tokenizeTitle(paren);
+
+  tokens.forEach((t) => {
+    if (/\d/.test(t) || t.length >= 5 || keyList.has(t)) required.push(t);
+  });
+  parenTokens.forEach((t) => required.push(t));
+
+  return [...new Set(required)];
+}
+
+function isTitleMatch(queryTitle, itemTitle) {
+  if (!queryTitle || !itemTitle) return false;
+  const qTokens = tokenizeTitle(queryTitle);
+  const iTokens = new Set(tokenizeTitle(itemTitle));
+  if (qTokens.length < 3) return true;
+
+  const qQty = extractQuantity(queryTitle);
+  const iQty = extractQuantity(itemTitle);
+  if (qQty && iQty && qQty !== iQty) return false;
+
+  const qLang = extractLanguage(queryTitle);
+  const iLang = extractLanguage(itemTitle);
+  if (qLang && iLang && qLang !== iLang) return false;
+  if (qLang && !iLang) return false;
+
+  const required = buildRequiredTokens(queryTitle);
+  if (required.length) {
+    let reqHits = 0;
+    required.forEach((t) => { if (iTokens.has(t)) reqHits += 1; });
+    const reqRatio = reqHits / required.length;
+    if (reqRatio < 0.7) return false;
+  }
+
+  const qSet = new Set(qTokens);
+  let inter = 0;
+  qSet.forEach((t) => { if (iTokens.has(t)) inter += 1; });
+  const union = new Set([...qSet, ...iTokens]).size;
+  const jaccard = union ? inter / union : 0;
+
+  return jaccard >= 0.35;
+}
+
 function parseSoldPrices(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const items = doc.querySelectorAll('.s-item');
   const cardPrices = doc.querySelectorAll('.s-card__price');
-  const prices = [];
+  const results = [];
   const dates = [];
 
   if ((!items || items.length === 0) && (!cardPrices || cardPrices.length === 0)) {
-    // Fallback: regex scrape price spans if DOM nodes are missing
     const regexMatches = Array.from(html.matchAll(/s-item__price[^>]*>([^<]+)</g));
     if (regexMatches.length) {
       regexMatches.forEach((m) => {
         const priceText = m[1] || '';
         const matches = priceText.match(/[\d,]+(?:\.\d{2})?/g);
         if (matches && matches.length) {
-          prices.push(parseFloat(matches[0].replace(',', '')));
+          const num = parseFloat(matches[0].replace(',', ''));
+          if (!Number.isNaN(num)) {
+            results.push({ price: num, href: '', title: '' });
+          }
         }
       });
     }
 
-    // Fallback: JSON-LD item list (often contains offers/prices)
-    if (prices.length === 0) {
+    if (results.length === 0) {
       const ldScripts = Array.from(
         doc.querySelectorAll('script[type="application/ld+json"]')
       );
@@ -96,7 +184,7 @@ function parseSoldPrices(html) {
                     ? price
                     : parseFloat(String(price).replace(',', ''));
                   if (!Number.isNaN(num)) {
-                    prices.push(num);
+                    results.push({ price: num, href: '', title: '' });
                   }
                 }
               });
@@ -108,15 +196,14 @@ function parseSoldPrices(html) {
       });
     }
 
-    // Fallback: extract prices from embedded JSON blobs
-    if (prices.length === 0) {
+    if (results.length === 0) {
       const jsonPriceMatches = Array.from(
         html.matchAll(/\"(?:currentPrice|price|convertedCurrentPrice)\"\\s*:\\s*\\{[^}]*\"value\"\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)/g)
       );
       jsonPriceMatches.forEach((m) => {
         const num = parseFloat(m[1]);
         if (!Number.isNaN(num)) {
-          prices.push(num);
+          results.push({ price: num, href: '', title: '' });
         }
       });
     }
@@ -130,48 +217,76 @@ function parseSoldPrices(html) {
     const priceEl = item.querySelector('.s-item__price') || item.querySelector('.BOLD');
     const priceText = priceEl?.textContent || '';
 
-    // Match prices like "$12.99", "$12", "12.99", "1,299.99"
     const matches = priceText.match(/[\d,]+(?:\.\d{2})?/g);
-    if (matches && matches.length) {
-      prices.push(parseFloat(matches[0].replace(',', '')));
-    }
+    const priceVal = matches && matches.length
+      ? parseFloat(matches[0].replace(',', ''))
+      : null;
 
     const dateEl = item.querySelector('.s-item__endedDate') || item.querySelector('.POSITIVE');
-    if (dateEl) {
-      dates.push(dateEl.textContent.trim());
+    const dateText = dateEl ? dateEl.textContent.trim() : '';
+    if (dateText) {
+      dates.push(dateText);
+    }
+
+    const linkEl = item.querySelector('a.s-item__link') || item.querySelector('a[href]');
+    const titleEl = item.querySelector('.s-item__title');
+    const href = normalizeHref(linkEl?.getAttribute('href') || '');
+    let title = titleEl?.textContent?.trim() || linkEl?.textContent?.trim() || '';
+    title = title.replace(/Opens in a new window or tab/gi, '').trim();
+
+    if (priceVal && !Number.isNaN(priceVal)) {
+      results.push({ price: priceVal, href, title, dateText });
     }
   });
 
-  if (prices.length === 0 && cardPrices && cardPrices.length) {
+  if (results.length === 0 && cardPrices && cardPrices.length) {
     cardPrices.forEach((el) => {
-      // Exclude refine/filter UI areas
       if (el.closest('form') || el.closest('.x-refine__main') || el.closest('.srp-refine__panel')) {
         return;
       }
 
       const priceText = el.textContent || '';
       if (!priceText.match(/[$€£¥]/)) return;
-      if (priceText.toLowerCase().includes('to')) return; // skip price ranges
+      if (priceText.toLowerCase().includes('to')) return;
       const matches = priceText.match(/[\d,]+(?:\.\d{2})?/g);
       if (matches && matches.length) {
         const num = parseFloat(matches[0].replace(',', ''));
         if (!Number.isNaN(num) && num > 0) {
-          prices.push(num);
+          const container = el.closest('.s-card') || el.closest('li') || el.closest('div') || el.parentElement;
+          const linkEl = container?.querySelector('a[href]') || el.closest('a[href]');
+          const titleEl = container?.querySelector('.s-item__title') || container?.querySelector('[role="heading"]');
+          const href = normalizeHref(linkEl?.getAttribute('href') || '');
+          let title = titleEl?.textContent?.trim() || linkEl?.textContent?.trim() || '';
+          title = title.replace(/Opens in a new window or tab/gi, '').trim();
+
+          results.push({ price: num, href, title });
         }
       }
     });
   }
 
-  return { prices, dates };
+  return { results, dates };
 }
 
-function calcStats(prices) {
-  if (!prices || prices.length === 0) return null;
-  const sorted = [...prices].sort((a, b) => a - b);
+function filterOutliers(items) {
+  if (!items || items.length < 5) return items;
+  const prices = items.map((i) => i.price).sort((a, b) => a - b);
+  const q1 = prices[Math.floor(prices.length * 0.25)];
+  const q3 = prices[Math.floor(prices.length * 0.75)];
+  const iqr = q3 - q1;
+  const low = q1 - 1.5 * iqr;
+  const high = q3 + 1.5 * iqr;
+  const filtered = items.filter((i) => i.price >= low && i.price <= high);
+  return filtered.length >= 5 ? filtered : items;
+}
+
+function calcStats(items) {
+  if (!items || items.length === 0) return null;
+  const prices = items.map((i) => i.price).sort((a, b) => a - b);
   const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
-  const median = sorted[Math.floor(sorted.length / 2)];
-  const min = sorted[0];
-  const max = sorted[sorted.length - 1];
+  const median = prices[Math.floor(prices.length / 2)];
+  const min = prices[0];
+  const max = prices[prices.length - 1];
   const count = prices.length;
   return { avg, median, min, max, count };
 }
@@ -200,6 +315,47 @@ function getCurrentListingPrice() {
   return null;
 }
 
+function renderSparkline(prices, canvas) {
+  if (!canvas || !prices || prices.length < 2) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = max - min || 1;
+
+  ctx.strokeStyle = '#69f0ae';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  prices.forEach((p, i) => {
+    const x = (i / (prices.length - 1)) * (w - 4) + 2;
+    const y = h - ((p - min) / range) * (h - 8) - 4;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+
+function downloadCsv(items) {
+  const lines = ['price,title,link'];
+  items.forEach((i) => {
+    const title = (i.title || '').replace(/\"/g, '\"\"');
+    const link = i.href || '';
+    lines.push(`${i.price},\"${title}\",\"${link}\"`);
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'flipscout-sales.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function injectSidebar({ loading = false } = {}) {
   document.getElementById('flipscout-sidebar')?.remove();
 
@@ -221,7 +377,7 @@ function injectSidebar({ loading = false } = {}) {
   });
 }
 
-function updateSidebar({ stats, error, limitReached, count, isPaid, flipScore }) {
+function updateSidebar({ stats, error, limitReached, count, isPaid, flipScore, recentItems, note }) {
   const body = document.getElementById('fs-body');
   if (!body) return;
 
@@ -268,6 +424,8 @@ function updateSidebar({ stats, error, limitReached, count, isPaid, flipScore })
       </div>
     ` : ''}
 
+    ${note ? `<div class="fs-note">${note}</div>` : ''}
+
     <div class="fs-stats">
       <div class="fs-stat-row">
         <span>Avg Sold</span>
@@ -301,11 +459,74 @@ function updateSidebar({ stats, error, limitReached, count, isPaid, flipScore })
         </button>
       </div>
     ` : ''}
+
+    ${isPaid ? `
+      <div class="fs-pro-block">
+        <div class="fs-sales-title">Price history</div>
+        <canvas id="fs-price-chart" width="200" height="60"></canvas>
+        <button class="fs-export-btn" id="fs-export-btn">Export CSV</button>
+      </div>
+
+      <div class="fs-pro-block">
+        <div class="fs-sales-title">Profit calculator</div>
+        <div class="fs-profit">
+          <label>Buy price</label>
+          <input type="number" id="fs-buy-price" step="0.01" />
+          <label>Fees %</label>
+          <input type="number" id="fs-fee-pct" step="0.1" value="13" />
+          <label>Shipping</label>
+          <input type="number" id="fs-ship" step="0.01" value="0" />
+          <button class="fs-export-btn" id="fs-calc-btn">Calculate</button>
+          <div class="fs-profit-result" id="fs-profit-result"></div>
+        </div>
+      </div>
+    ` : ''}
+
+    ${recentItems && recentItems.length ? `
+      <div class="fs-sales">
+        <div class="fs-sales-title">Recent sales</div>
+        ${recentItems.map((it) => `
+          <a class="fs-sale" href="${it.href}" target="_blank" rel="noopener">
+            <span class="fs-sale-price">$${it.price.toFixed(2)}</span>
+            <span class="fs-sale-title">${(it.title || 'View item').slice(0, 40)}</span>
+          </a>
+        `).join('')}
+      </div>
+    ` : ''}
   `;
 
   if (document.getElementById('fs-upgrade-btn')) {
     document.getElementById('fs-upgrade-btn').addEventListener('click', () => {
       window.open('https://matworsh.github.io/flipscout/?checkout=true', '_blank');
+    });
+  }
+
+  if (isPaid) {
+    const chart = document.getElementById('fs-price-chart');
+    if (chart && recentItems && recentItems.length) {
+      renderSparkline(recentItems.map((i) => i.price), chart);
+    }
+
+    document.getElementById('fs-export-btn')?.addEventListener('click', () => {
+      if (recentItems && recentItems.length) {
+        downloadCsv(recentItems);
+      }
+    });
+
+    const buyInput = document.getElementById('fs-buy-price');
+    if (buyInput && stats) {
+      buyInput.value = stats.avg.toFixed(2);
+    }
+
+    document.getElementById('fs-calc-btn')?.addEventListener('click', () => {
+      const buy = parseFloat(document.getElementById('fs-buy-price').value || '0');
+      const feePct = parseFloat(document.getElementById('fs-fee-pct').value || '0');
+      const ship = parseFloat(document.getElementById('fs-ship').value || '0');
+      const resale = stats ? stats.avg : 0;
+      const fees = resale * (feePct / 100);
+      const profit = resale - buy - fees - ship;
+      const el = document.getElementById('fs-profit-result');
+      el.textContent = `Est. profit: $${profit.toFixed(2)}`;
     });
   }
 }
@@ -323,8 +544,9 @@ async function init() {
   if (!pageType) return;
   if (pageType !== 'listing') return;
 
-  const title = extractTitle();
-  if (!title) return;
+  const titleClean = extractTitleClean();
+  const titleRaw = extractTitleRaw();
+  if (!titleClean) return;
 
   injectSidebar({ loading: true });
 
@@ -334,26 +556,39 @@ async function init() {
     return;
   }
 
-  const res = await fetchSoldData(title);
+  const res = await fetchSoldData(titleClean);
   if (!res || !res.html) {
     updateSidebar({ error: 'Could not load sold data' });
     return;
   }
 
-  const { prices } = parseSoldPrices(res.html);
-  if (!prices.length) {
+  const { results } = parseSoldPrices(res.html);
+  if (!results.length) {
     updateSidebar({ error: 'No recent sold listings found' });
     return;
   }
 
-  const stats = calcStats(prices);
+  const titleForMatch = titleRaw || titleClean;
+  const matchedItems = results.filter((i) => isTitleMatch(titleForMatch, i.title));
+  if (matchedItems.length === 0) {
+    updateSidebar({ error: 'No closely matching sold listings found' });
+    return;
+  }
+
+  const filteredItems = filterOutliers(matchedItems);
+  const stats = calcStats(filteredItems);
   const currentPrice = getCurrentListingPrice();
   const flipScore = usage.isPaid && currentPrice ? calcFlipScore(currentPrice, stats) : null;
+  const recentItems = filteredItems.filter((i) => i.href).slice(0, 6);
+  const note = filteredItems.length < 5 ? 'Few comparable sales found' : '';
+
   updateSidebar({
     stats,
     isPaid: usage.isPaid === true,
     count: usage.count || 0,
-    flipScore
+    flipScore,
+    recentItems,
+    note
   });
 }
 
